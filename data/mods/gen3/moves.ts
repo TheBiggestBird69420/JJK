@@ -126,6 +126,7 @@ export const Moves: {[k: string]: ModdedMoveData} = {
 			foe.removeSideCondition('reflect');
 			foe.removeSideCondition('lightscreen');
 		},
+		onTryMove() {},
 	},
 	charge: {
 		inherit: true,
