@@ -7,7 +7,7 @@
  * @license MIT license
  */
 
-import {ScavengerHunt, ScavengerHuntPlayer, ScavengerHuntFinish} from './scavengers';
+import {ScavengerHunt, ScavengerHuntPlayer as Scavenger, ScavengerHuntFinish} from './scavengers';
 import {Utils} from '../../lib';
 
 namespace Twists {
@@ -47,13 +47,13 @@ namespace Twists {
 		guesses: {[playerId: string]: Set<string>}[];
 	}
 
-	export interface PerfectScorePlayer extends ScavengerHuntPlayer {
+	export interface PerfectScorePlayer extends Scavenger {
 		answers: Record<number, string[]>;
 	}
-	export interface BonusRoundPlayer extends ScavengerHuntPlayer {
+	export interface BonusRoundPlayer extends Scavenger {
 		skippedQuestion: boolean;
 	}
-	export interface BlindIncognitoPlayer extends ScavengerHuntPlayer {
+	export interface BlindIncognitoPlayer extends Scavenger {
 		preCompleted?: boolean;
 	}
 }
@@ -247,7 +247,7 @@ const TWISTS: TwistCollection = {
 		id: 'incognito',
 		desc: "Upon answering the last question correctly, the player's finishing time will not be announced in the room!  Results will only be known at the end of the hunt.",
 
-		onCorrectAnswer(player: ScavengerHuntPlayer, value: string) {
+		onCorrectAnswer(player: Scavenger, value: string) {
 			if (player.currentQuestion + 1 >= this.questions.length) {
 				this.runEvent('PreComplete', player);
 
@@ -257,7 +257,7 @@ const TWISTS: TwistCollection = {
 			}
 		},
 
-		onPreComplete(player: ScavengerHuntPlayer) {
+		onPreComplete(player: Scavenger) {
 			const now = Date.now();
 			const time = Chat.toDurationString(now - this.startTime, {hhmmss: true});
 			const canBlitz = this.completed.length < 3;
@@ -265,7 +265,8 @@ const TWISTS: TwistCollection = {
 			const blitz = now - this.startTime <= 60000 && canBlitz &&
 				(this.room.settings.scavSettings?.blitzPoints?.[this.gameType] || this.gameType === 'official');
 
-			const result: ScavengerHuntFinish = this.runEvent('Complete', player, time, blitz) || {name: player.name, id: player.id, time, blitz};
+			const fallbackResult = {name: player.name, id: player.id, time, blitz};
+			const result: ScavengerHuntFinish = this.runEvent('Complete', player, time, blitz) || fallbackResult;
 
 			this.preCompleted = this.preCompleted ? [...this.preCompleted, result] : [result];
 			player.completed = true;
@@ -283,7 +284,7 @@ const TWISTS: TwistCollection = {
 
 		desc: 'Every wrong answer adds 30 seconds to your final time!',
 
-		onIncorrectAnswer(player: ScavengerHuntPlayer, value: string) {
+		onIncorrectAnswer(player: Scavenger, value: string) {
 			if (!player.incorrect) player.incorrect = [];
 			const id = `${player.currentQuestion}-${value}`;
 			if (player.incorrect.includes(id)) return;
@@ -291,7 +292,7 @@ const TWISTS: TwistCollection = {
 			player.incorrect.push(id);
 		},
 
-		onComplete(player: ScavengerHuntPlayer, time: string, blitz: boolean) {
+		onComplete(player: Scavenger, time: string, blitz: boolean) {
 			const seconds = toSeconds(time);
 			if (!player.incorrect) return {name: player.name, id: player.id, total: seconds, blitz, time};
 
@@ -302,7 +303,8 @@ const TWISTS: TwistCollection = {
 			return {name: player.name, id: player.id, total, blitz, time: finalTime};
 		},
 
-		onConfirmCompletion(player: ScavengerHuntPlayer, _time: string, _blitz: boolean, place: string, {blitz, time}: ScavengerHuntFinish) {
+		onConfirmCompletion(player: Scavenger, _time: string, _blitz: boolean, place: string, result: ScavengerHuntFinish) {
+			const {blitz, time} = result;
 			const deductionMessage = player.incorrect?.length ?
 				Chat.count(player.incorrect, 'incorrect guesses', 'incorrect guess') :
 				"Perfect!";
@@ -350,7 +352,8 @@ const TWISTS: TwistCollection = {
 			const blitz = now - this.startTime <= 60000 && canBlitz &&
 				(this.room.settings.scavSettings?.blitzPoints?.[this.gameType] || this.gameType === 'official');
 
-			const result: ScavengerHuntFinish = this.runEvent('Complete', player, time, blitz) || {name: player.name, id: player.id, time, blitz};
+			const fallbackResult = {name: player.name, id: player.id, time, blitz};
+			const result: ScavengerHuntFinish = this.runEvent('Complete', player, time, blitz) || fallbackResult;
 
 			this.preCompleted = this.preCompleted ? [...this.preCompleted, result] : [result];
 			player.preCompleted = true;
@@ -377,7 +380,7 @@ const TWISTS: TwistCollection = {
 			this.startTimes = {};
 		},
 
-		onJoin(user: ScavengerHuntPlayer & User) {
+		onJoin(user: Scavenger & User) {
 			if (!Config.noipchecks) {
 				const altIp = user.ips.find(ip => this.altIps[ip] && this.joinedIps.includes(user.id));
 				if (altIp) {
@@ -397,13 +400,13 @@ const TWISTS: TwistCollection = {
 			return true;
 		},
 
-		onLeave(player: ScavengerHuntPlayer) {
+		onLeave(player: Scavenger) {
 			for (const ip of player.joinIps) {
 				this.altIps[ip] = {id: player.id, name: player.name};
 			}
 		},
 
-		onComplete(player: ScavengerHuntPlayer, time: string, blitz: boolean) {
+		onComplete(player: Scavenger, time: string, blitz: boolean) {
 			const now = Date.now();
 			const takenTime = Chat.toDurationString(now - this.startTimes[player.id], {hhmmss: true});
 			const result = {name: player.name, id: player.id, time: takenTime, blitz};
@@ -435,7 +438,7 @@ const TWISTS: TwistCollection = {
 			});
 		},
 
-		onIncorrectAnswer(player: ScavengerHuntPlayer, value: string) {
+		onIncorrectAnswer(player: Scavenger, value: string) {
 			const curr = player.currentQuestion;
 
 			if (!this.incorrect[curr][value]) this.incorrect[curr][value] = new Set();
@@ -443,7 +446,7 @@ const TWISTS: TwistCollection = {
 		},
 
 		onSubmitPriority: 1,
-		onSubmit(player: ScavengerHuntPlayer, valueToId: string, value: string) {
+		onSubmit(player: Scavenger, valueToId: string, value: string) {
 			const currentQuestion = player.currentQuestion;
 
 			if (currentQuestion + 1 === this.questions.length) {
@@ -550,7 +553,7 @@ const TWISTS: TwistCollection = {
 			return true;
 		},
 
-		onIncorrectAnswer(player: ScavengerHuntPlayer, value: string) {
+		onIncorrectAnswer(player: Scavenger, value: string) {
 			const curr = player.currentQuestion;
 
 			if (!this.guesses[curr][player.id]) this.guesses[curr][player.id] = new Set();
@@ -909,7 +912,7 @@ const MODES: {[k: string]: GameMode | string} = {
 		  } */
 		teams: {},
 
-		teamAnnounce(player: ScavengerHuntPlayer | User, message: string) {
+		teamAnnounce(player: Scavenger | User, message: string) {
 			const team = this.getPlayerTeam(player);
 
 			for (const userid of team.players) {
@@ -920,7 +923,7 @@ const MODES: {[k: string]: GameMode | string} = {
 			}
 		},
 
-		getPlayerTeam(player: ScavengerHuntPlayer | User) {
+		getPlayerTeam(player: Scavenger | User) {
 			const game = this.room.scavgame!;
 			for (const teamID in game.teams) {
 				const team = game.teams[teamID];
@@ -931,7 +934,7 @@ const MODES: {[k: string]: GameMode | string} = {
 			return null;
 		},
 
-		advanceTeam(answerer: ScavengerHuntPlayer, isFinished?: boolean) {
+		advanceTeam(answerer: Scavenger, isFinished?: boolean) {
 			const hunt = this.room.getGame(ScavengerHunt)!;
 
 			const team = this.getPlayerTeam(answerer);
