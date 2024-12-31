@@ -2290,12 +2290,27 @@ export const Formats: import('../sim/dex-formats').FormatList = [
 			'ND Uber', 'ND AG', 'ND OU', 'ND UUBL', 'ND UU', 'ND RUBL', 'ND RU', 'ND NFE', 'ND LC',
 			'Battle Bond', 'Moody', 'Shadow Tag', 'Berserk Gene', 'King\'s Rock', 'Quick Claw', 'Razor Fang', 'Acupressure', 'Last Respects',
 		],
-		unbanlist: [
-			'Appletun', 'Aurorus', 'Avalugg-Base', 'Banette-Base', 'Cacturne', 'Carracosta', 'Celebi', 'Cetitan', 'Chandelure', 'Cryogonal', 'Dipplin',
-			'Garbodor', 'Golem-Alola', 'Guzzlord', 'Jumpluff', 'Luvdisc', 'Magmortar', 'Mawile-Base', 'Milotic', 'Morpeko', 'Pachirisu', 'Perrserker',
-			'Primarina', 'Pupitar', 'Pyukumuku', 'Ribombee', 'Roserade', 'Rotom-Frost', 'Scovillain', 'Toxicroak', 'Walrein', 'Wo-Chien', 'Wugtrio',
-			'Yanmega', 'Zoroark-Base',
-		],
+		validateTeam(team, options) {
+			const allowedPokemon = [
+				'Appletun', 'Aurorus', 'Avalugg-Base', 'Banette-Base', 'Cacturne', 'Carracosta', 'Celebi', 'Cetitan', 'Chandelure', 'Cryogonal', 'Dipplin',
+				'Garbodor', 'Golem-Alola', 'Guzzlord', 'Jumpluff', 'Luvdisc', 'Magmortar', 'Mawile-Base', 'Milotic', 'Morpeko', 'Pachirisu', 'Perrserker',
+				'Primarina', 'Pupitar', 'Pyukumuku', 'Ribombee', 'Roserade', 'Rotom-Frost', 'Scovillain', 'Toxicroak', 'Walrein', 'Wo-Chien', 'Wugtrio',
+				'Yanmega', 'Zoroark-Base',
+			];
+			if(this.gen === 0) {
+				// This block is only to be reached by the client build script.
+				const display = allowedPokemon.map((mon) => mon.endsWith('-Base') ? mon.slice(0, -5) : mon).includes(team[0].species);
+				return display ? [] : undefined;
+			}
+			if(!this.ruleTable.has('-pokemontag:allpokemon')) {
+				for(const mon of allowedPokemon) {
+					const rule = this.dex.formats.validateRule('+' + mon, this.format) as string;
+					if(!this.ruleTable.check(rule.slice(1))) this.ruleTable.set(rule, '');
+				}
+			}
+			const problems = this.baseValidateTeam.call(this, team, options);
+			if(problems) return problems;
+		},
 		// Stupid hardcode
 		onValidateSet(set, format, setHas, teamHas) {
 			if (set.item) {
