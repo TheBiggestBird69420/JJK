@@ -2169,10 +2169,24 @@ export const Items: import('../sim/dex-items').ItemDataTable = {
 		num: 202,
 		gen: 3,
 	},
-	garchompite: {
-		name: "Garchompite",
+	garchompiteX: {
+		name: "Garchompite-X",
 		spritenum: 589,
-		megaStone: "Garchomp-Mega",
+		megaStone: "Garchomp-Mega-X",
+		megaEvolves: "Garchomp",
+		itemUser: ["Garchomp"],
+		onTakeItem(item, source) {
+			if (item.megaEvolves === source.baseSpecies.baseSpecies) return false;
+			return true;
+		},
+		num: 683,
+		gen: 6,
+		isNonstandard: "Past",
+	},
+		garchompiteY: {
+		name: "Garchompite-Y",
+		spritenum: 589,
+		megaStone: "Garchomp-Mega-Y",
 		megaEvolves: "Garchomp",
 		itemUser: ["Garchomp"],
 		onTakeItem(item, source) {
